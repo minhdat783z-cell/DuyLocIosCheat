@@ -7,5 +7,4 @@ include $(THEOS)/makefiles/common.mk
 TWEAK_NAME = DuyLocIosCheat
 DuyLocIosCheat_FILES = DuyLocIosCheat_Combined.mm
 DuyLocIosCheat_FRAMEWORKS = UIKit Foundation
-
 include $(THEOS)/makefiles/tweak.mk
