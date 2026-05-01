@@ -1,4 +1,4 @@
-name: Build DuyLocIosCheat
+name: Build
 on:
   push:
     branches: [ "main" ]
@@ -15,21 +15,15 @@ jobs:
           sudo apt-get install -y build-essential perl git curl libssl-dev
           sudo git clone --recursive https://github.com/theos/theos.git /opt/theos
           sudo chown -R $USER:$GROUP /opt/theos
-            - name: SDK_Toolchain
-       run: |
-          # 1. Tải và giải nén SDK
+      - name: SDK_Toolchain
+        run: |
           curl -LO https://github.com/theos/sdks/archive/master.zip
           unzip -q master.zip
           mkdir -p /opt/theos/sdks
           mv sdks-master/iPhoneOS14.5.sdk /opt/theos/sdks/
-          rm -rf sdks-master master.zip
-
-          # 2. Tải Toolchain từ nguồn dự phòng ổn định hơn
-          # Sử dụng bản toolchain đã được xác nhận hoạt động tốt trên Ubuntu
-          curl -L https://github.com/theos/toolchain/releases/download/linux-arm64/toolchain-linux-arm64.tar.gz -o toolchain.tar.gz
+          curl -L https://github.com/theos/toolchain/releases/download/linux-arm64/toolchain-linux-arm64.tar.gz -o t.tar.gz
           mkdir -p /opt/theos/toolchain
-          tar -xf toolchain.tar.gz -C /opt/theos/toolchain
-          rm toolchain.tar.gz
+          tar -xf t.tar.gz -C /opt/theos/toolchain
       - name: Build
         run: |
           export THEOS=/opt/theos
@@ -38,6 +32,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: DuyLocIosCheat-Dylib
-          path: |
-            .theos/obj/debug/*.dylib
-            packages/*.deb
+          path: packages/*.deb
