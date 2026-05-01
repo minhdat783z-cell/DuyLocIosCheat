@@ -16,9 +16,10 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y build-essential perl git curl libssl-dev
-          # Sử dụng script cài đặt tự động của Theos
-          bash -c "$(curl -fsSL https://raw.githubusercontent.com/theos/theos/master/bin/install-theos)"
-          echo "THEOS=/opt/theos" >> $GITHUB_ENV
+          # Cài đặt vào thư mục ngay tại repo để đảm bảo quyền truy cập
+          git clone --recursive https://github.com/theos/theos.git $GITHUB_WORKSPACE/theos
+          echo "THEOS=$GITHUB_WORKSPACE/theos" >> $GITHUB_ENV
+
 
       - name: Setup SDK 14.5
         run: |
@@ -29,10 +30,9 @@ jobs:
           sudo mv sdks-master/iPhoneOS14.5.sdk /opt/theos/sdks/
           sudo rm -rf sdks-master master.zip
 
-      - name: Build Tweak
-        run: |
-          export THEOS=/opt/theos
-          # Biên dịch cho arm64 và arm64e
+            - name: Build Tweak
+         run: |
+          # Không cần export THEOS thủ công vì đã có ở bước trên
           make package FINALPACKAGE=1
 
       - name: Upload Artifact
