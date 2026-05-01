@@ -12,34 +12,27 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup Theos
+      - name: Setup Theos & Toolchain
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential perl git curl libssl-dev unzip
-          # Cài đặt Theos vào thư mục chuẩn
-          git clone --recursive https://github.com/theos/theos.git ~/theos
-          echo "THEOS=~/theos" >> $GITHUB_ENV
+          sudo apt-get install -y build-essential perl git curl libssl-dev
+          # Sử dụng script cài đặt tự động của Theos
+          bash -c "$(curl -fsSL https://raw.githubusercontent.com/theos/theos/master/bin/install-theos)"
+          echo "THEOS=/opt/theos" >> $GITHUB_ENV
 
       - name: Setup SDK 14.5
         run: |
+          # Tải SDK từ kho lưu trữ ổn định
           curl -LO https://github.com/theos/sdks/archive/master.zip
           unzip -q master.zip
-          mkdir -p ~/theos/sdks
-          mv sdks-master/iPhoneOS14.5.sdk ~/theos/sdks/
-          rm -rf sdks-master master.zip
-
-      - name: Setup Toolchain
-        run: |
-          curl -LO https://github.com/kabiroberai/theos-toolchain-linux/releases/download/v2.0.0/toolchain-linux-arm64.tar.gz
-          mkdir -p ~/theos/toolchain/linux/iphone
-          tar -xf toolchain-linux-arm64.tar.gz -C ~/theos/toolchain/linux/iphone --strip-components=1
-          rm toolchain-linux-arm64.tar.gz
+          sudo mkdir -p /opt/theos/sdks
+          sudo mv sdks-master/iPhoneOS14.5.sdk /opt/theos/sdks/
+          sudo rm -rf sdks-master master.zip
 
       - name: Build Tweak
         run: |
-          export THEOS=~/theos
-          # Kiểm tra file trước khi build để tránh lỗi
-          ls -R $THEOS/makefiles
+          export THEOS=/opt/theos
+          # Biên dịch cho arm64 và arm64e
           make package FINALPACKAGE=1
 
       - name: Upload Artifact
