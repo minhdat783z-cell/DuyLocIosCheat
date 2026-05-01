@@ -16,7 +16,7 @@ jobs:
           sudo git clone --recursive https://github.com/theos/theos.git /opt/theos
           sudo chown -R $USER:$GROUP /opt/theos
             - name: SDK_Toolchain
-        run: |
+       run: |
           # 1. Tải và giải nén SDK
           curl -LO https://github.com/theos/sdks/archive/master.zip
           unzip -q master.zip
