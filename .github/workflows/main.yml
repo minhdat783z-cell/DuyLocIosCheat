@@ -12,34 +12,21 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup Theos
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y build-essential perl git curl libssl-dev
-          sudo git clone --recursive https://github.com/theos/theos.git /opt/theos
-          sudo chown -R $USER:$GROUP /opt/theos
+      - name: Setup Theos environment
+        uses: theos/setup-theos-action@v1.0.3
 
-      - name: Setup SDK & Toolchain (Final Fix)
+      - name: Download iOS SDK
         run: |
-          # 1. Tải và giải nén SDK
           curl -LO https://github.com/theos/sdks/archive/master.zip
           unzip -q master.zip
-          mkdir -p /opt/theos/sdks
-          mv sdks-master/iPhoneOS14.5.sdk /opt/theos/sdks/
+          mv sdks-master/iPhoneOS14.5.sdk $THEOS/sdks/
           rm -rf sdks-master master.zip
-
-          # 2. Tải Toolchain mới (Dùng link trực tiếp từ GitHub)
-          curl -L https://github.com/theos/toolchain/releases/download/linux-arm64/toolchain-linux-arm64.tar.gz -o toolchain.tar.gz
-          
-          # 3. Giải nén Toolchain
-          mkdir -p /opt/theos/toolchain/linux/iphone
-          tar -xf toolchain.tar.gz -C /opt/theos/toolchain/linux/iphone --strip-components=1
-          rm toolchain.tar.gz
 
       - name: Build Tweak
         run: |
-          export THEOS=/opt/theos
           make package FINALPACKAGE=1
+        env:
+          THEOS: ${{ github.workspace }}/theos
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
