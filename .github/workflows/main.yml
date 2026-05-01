@@ -15,13 +15,12 @@ jobs:
       - name: Setup Theos & Toolchain
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential perl git curl libssl-dev
+          sudo apt-get install -y build-essential perl git curl libssl-dev ccache
           export THEOS=/opt/theos
           sudo git clone --recursive https://github.com/theos/theos.git $THEOS
-          # Tải trình biên dịch (Toolchain) để sửa lỗi clang
-          curl -LO https://github.com/theos/toolchain/releases/download/linux-arm64/toolchain-linux-arm64.tar.gz
-          sudo mkdir -p $THEOS/toolchain
-          sudo tar -xf toolchain-linux-arm64.tar.gz -C $THEOS/toolchain
+          # Sử dụng toolchain chính thức của Cabal (ổn định hơn cho Linux)
+          curl -LO https://github.com/kabiroberai/theos-toolchain-linux/releases/download/v1.1.0/toolchain-linux-arm64.tar.gz
+          sudo tar -xf toolchain-linux-arm64.tar.gz -C $THEOS
           sudo chown -R $USER:$GROUP $THEOS
 
       - name: Setup SDK
@@ -35,7 +34,8 @@ jobs:
       - name: Build Tweak
         run: |
           export THEOS=/opt/theos
-          make package FINALPACKAGE=1
+          # Ép kiểu build cho kiến trúc 64-bit
+          make package FINALPACKAGE=1 ARCHS="arm64 arm64e"
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
