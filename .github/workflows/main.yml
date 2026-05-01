@@ -19,20 +19,22 @@ jobs:
           sudo git clone --recursive https://github.com/theos/theos.git /opt/theos
           sudo chown -R $USER:$GROUP /opt/theos
 
-      - name: Setup SDK & Toolchain (Stable Version)
+      - name: Setup SDK & Toolchain (Final Fix)
         run: |
-          # Tải SDK 14.5
+          # 1. Tải và giải nén SDK
           curl -LO https://github.com/theos/sdks/archive/master.zip
           unzip -q master.zip
           mkdir -p /opt/theos/sdks
           mv sdks-master/iPhoneOS14.5.sdk /opt/theos/sdks/
           rm -rf sdks-master master.zip
 
-          # Cài đặt Toolchain chuyên dụng cho Linux
-          curl -LO https://github.com/kabiroberai/theos-toolchain-linux/releases/download/v2.0.0/toolchain-linux-arm64.tar.gz
+          # 2. Tải Toolchain mới (Dùng link trực tiếp từ GitHub)
+          curl -L https://github.com/theos/toolchain/releases/download/linux-arm64/toolchain-linux-arm64.tar.gz -o toolchain.tar.gz
+          
+          # 3. Giải nén Toolchain
           mkdir -p /opt/theos/toolchain/linux/iphone
-          tar -xf toolchain-linux-arm64.tar.gz -C /opt/theos/toolchain/linux/iphone --strip-components=1
-          rm toolchain-linux-arm64.tar.gz
+          tar -xf toolchain.tar.gz -C /opt/theos/toolchain/linux/iphone --strip-components=1
+          rm toolchain.tar.gz
 
       - name: Build Tweak
         run: |
