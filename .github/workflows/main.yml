@@ -25,13 +25,19 @@ jobs:
           mkdir -p /opt/theos/toolchain/linux/iphone
           tar -xf toolchain-linux-arm64.tar.gz -C /opt/theos/toolchain/linux/iphone --strip-components=1
 
-      - name: Setup SDK 14.5
-        run: |
+          - name: Setup SDK & Toolchain
+         run: |
+          # Tải SDK 14.5
           curl -LO https://github.com/theos/sdks/archive/master.zip
           unzip -q master.zip
-          sudo mkdir -p /opt/theos/sdks
-          sudo mv sdks-master/iPhoneOS14.5.sdk /opt/theos/sdks/
-          sudo rm -rf sdks-master master.zip
+          mkdir -p /opt/theos/sdks
+          mv sdks-master/iPhoneOS14.5.sdk /opt/theos/sdks/
+          rm -rf sdks-master master.zip
+
+          # Tải Toolchain bằng link trực tiếp và ép buộc chuyển hướng (Fix lỗi dòng 155)
+          mkdir -p /opt/theos/toolchain/linux/iphone
+          curl -L "https://github.com/theos/toolchain/releases/download/linux-arm64/toolchain-linux-arm64.tar.gz" | tar -xz -C /opt/theos/toolchain/linux/iphone --strip-components=1
+    
 
       - name: Build Tweak
         run: |
