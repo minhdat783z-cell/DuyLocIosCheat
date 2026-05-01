@@ -12,18 +12,20 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup Theos
+      - name: Setup Theos & Toolchain
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential perl git curl
+          sudo apt-get install -y build-essential perl git curl libssl-dev
           sudo git clone --recursive https://github.com/theos/theos.git /opt/theos
+          curl -LO https://github.com/theos/toolchain/releases/download/linux-arm64/toolchain-linux-arm64.tar.gz
+          sudo mkdir -p /opt/theos/toolchain
+          sudo tar -xf toolchain-linux-arm64.tar.gz -C /opt/theos/toolchain
           sudo chown -R $USER:$GROUP /opt/theos
 
       - name: Setup SDK
         run: |
           curl -LO https://github.com/theos/sdks/archive/master.zip
           unzip master.zip
-          mkdir -p /opt/theos/sdks
           mv sdks-master/iPhoneOS14.5.sdk /opt/theos/sdks/
 
       - name: Build Tweak
