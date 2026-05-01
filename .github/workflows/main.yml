@@ -15,16 +15,20 @@ jobs:
       - name: Setup Theos & Toolchain
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential perl git curl libssl-dev ccache
+          sudo apt-get install -y build-essential perl git curl libssl-dev
           export THEOS=/opt/theos
           sudo git clone --recursive https://github.com/theos/theos.git $THEOS
-          # Sử dụng toolchain chính thức của Cabal (ổn định hơn cho Linux)
-          curl -LO https://github.com/kabiroberai/theos-toolchain-linux/releases/download/v1.1.0/toolchain-linux-arm64.tar.gz
-          sudo tar -xf toolchain-linux-arm64.tar.gz -C $THEOS
+          
+          # Sử dụng bộ toolchain ổn định từ Kaben (thường dùng cho GitHub Actions)
+          curl -LO https://github.com/kabiroberon/theos-toolchain-linux/releases/download/v1.0/toolchain-linux-arm64.tar.gz
+          sudo mkdir -p $THEOS/toolchain/linux/iphone
+          sudo tar -xf toolchain-linux-arm64.tar.gz -C $THEOS/toolchain/linux/iphone
+          
           sudo chown -R $USER:$GROUP $THEOS
 
       - name: Setup SDK
         run: |
+          # Tải SDK 14.5
           curl -LO https://github.com/theos/sdks/archive/master.zip
           unzip master.zip
           mkdir -p /opt/theos/sdks
@@ -34,13 +38,13 @@ jobs:
       - name: Build Tweak
         run: |
           export THEOS=/opt/theos
-          # Ép kiểu build cho kiến trúc 64-bit
-          make package FINALPACKAGE=1 ARCHS="arm64 arm64e"
+          # Lệnh biên dịch chuẩn
+          make package FINALPACKAGE=1
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: DuyLocIosCheat-Output
+          name: DuyLocIosCheat-Dylib
           path: |
             .theos/obj/debug/*.dylib
             packages/*.deb
