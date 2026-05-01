@@ -16,19 +16,18 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y build-essential perl git curl libssl-dev
-          # Cài đặt Theos vào thư mục /opt/theos
           sudo git clone --recursive https://github.com/theos/theos.git /opt/theos
           sudo chown -R $USER:$GROUP /opt/theos
 
       - name: Setup SDK & Toolchain
         run: |
-          # Tải SDK 14.5
+          # Tải SDK 14.5 ổn định
           curl -LO https://github.com/theos/sdks/archive/master.zip
           unzip master.zip
           mkdir -p /opt/theos/sdks
           mv sdks-master/iPhoneOS14.5.sdk /opt/theos/sdks/
           
-          # Tải Toolchain để sửa lỗi "clang: No such file or directory"
+          # Cài đặt Toolchain (Sửa lỗi clang: No such file or directory)
           curl -LO https://github.com/theos/toolchain/releases/download/linux-arm64/toolchain-linux-arm64.tar.gz
           mkdir -p /opt/theos/toolchain
           tar -xf toolchain-linux-arm64.tar.gz -C /opt/theos/toolchain
@@ -36,7 +35,6 @@ jobs:
       - name: Build Tweak
         run: |
           export THEOS=/opt/theos
-          # Biên dịch tạo file dylib
           make package FINALPACKAGE=1
 
       - name: Upload Artifact
