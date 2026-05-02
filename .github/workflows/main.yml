@@ -1,56 +1,35 @@
-name: Build DuyLocIosCheat
-
+name: Build
 on:
   push:
     branches: [ "main" ]
   workflow_dispatch:
-
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
+      - name: Checkout
         uses: actions/checkout@v4
-
-      - name: Setup Theos
+      - name: Setup
         run: |
           sudo apt-get update
           sudo apt-get install -y build-essential perl git curl libssl-dev
           sudo git clone --recursive https://github.com/theos/theos.git /opt/theos
           sudo chown -R $USER:$GROUP /opt/theos
-
       - name: SDK_Toolchain
         run: |
-          # Tải SDK 14.5
           curl -LO https://github.com/theos/sdks/archive/master.zip
           unzip -q master.zip
           mkdir -p /opt/theos/sdks
           mv sdks-master/iPhoneOS14.5.sdk /opt/theos/sdks/
-          rm -rf sdks-master master.zip
-
-          # Tải Toolchain từ link trực tiếp của Theos (Bản Linux)
-          curl -L https://github.com/theos/toolchain/releases/download/linux-arm64/toolchain-linux-arm64.tar.gz -o toolchain.tar.gz
-          
-          # Kiểm tra nếu file tải về bị lỗi (nhỏ hơn 1MB) thì dừng lại
-          FILESIZE=$(stat -c%s "toolchain.tar.gz")
-          if [ $FILESIZE -lt 1000000 ]; then
-            echo "Lỗi: File Toolchain tải về bị hỏng hoặc link chết."
-            exit 1
-          fi
-
+          curl -L https://github.com/theos/toolchain/releases/download/linux-arm64/toolchain-linux-arm64.tar.gz -o t.tar.gz
           mkdir -p /opt/theos/toolchain
-          tar -xf toolchain.tar.gz -C /opt/theos/toolchain
-          rm toolchain.tar.gz
-
-      - name: Build Tweak
+          tar -xf t.tar.gz -C /opt/theos/toolchain
+      - name: Build
         run: |
           export THEOS=/opt/theos
           make package FINALPACKAGE=1
-
-      - name: Upload Artifact
+      - name: Upload
         uses: actions/upload-artifact@v4
         with:
           name: DuyLocIosCheat-Dylib
-          path: |
-            .theos/obj/debug/*.dylib
-            packages/*.deb
+          path: packages/*.deb
