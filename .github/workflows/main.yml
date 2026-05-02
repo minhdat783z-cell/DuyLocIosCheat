@@ -1,63 +1,63 @@
-name: Build Project
+name: Telegram Build Bot
 
 on:
-  push:
-    branches: [ "main" ]
-  pull_request:
-    branches: [ "main" ]
+  repository_dispatch:
+    types: [telegram_build]
   workflow_dispatch:
 
 jobs:
   build:
-    runs-on: macos-latest
-
+    runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
+      - name: Checkout
         uses: actions/checkout@v4
-        with:
-          submodules: recursive
-
-      - name: Install System Dependencies
-        run: |
-          brew install ldid xz
 
       - name: Setup Theos
         run: |
-          export THEOS=~/theos
+          sudo apt-get update
+          sudo apt-get install -y binutils-arm-none-eabi
+          export THEOS=$GITHUB_WORKSPACE/theos
           git clone --recursive https://github.com/theos/theos.git $THEOS
-          
-      - name: Setup iOS Toolchain
+
+      - name: SDK_Toolchain
         run: |
-          export THEOS=~/theos
+          export THEOS=$GITHUB_WORKSPACE/theos
+          # Tải SDK iOS
           curl -LO https://github.com/theos/sdks/archive/master.zip
-          unzip master.zip
-          mv sdks-master/*.sdk $THEOS/sdks
-          rm -rf sdks-master master.zip
+          unzip -q master.zip
+          mkdir -p $THEOS/sdks
+          mv sdks-master/* $THEOS/sdks/
+          
+          # Tải Toolchain biên dịch
+          curl -LO https://github.com/sbingner/llvm-project/releases/download/v10.0.0-1/linux-ios-arm64e-clang-toolchain.tar.lzma
+          mkdir -p $THEOS/toolchain
+          tar -I xz -xf linux-ios-arm64e-clang-toolchain.tar.lzma -C $THEOS/toolchain
 
       - name: Build Package
         run: |
-          export THEOS=~/theos
-          export PATH=$THEOS/bin:$PATH
-          make package FINALPACKAGE=1
+          export THEOS=$GITHUB_WORKSPACE/theos
+          export PATH=$THEOS/toolchain/usr/bin:$PATH
+          make clean package FINALPACKAGE=1
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: built-package
+          name: Build-Output
           path: packages/*.deb
+
       - name: Extract Dylib and Send to Telegram
-      if: success()
-      run: |
-        # 1. Tìm tệp .deb
-        DEB_FILE=$(ls packages/*.deb | head -n 1)
-        
-        # 2. Giải nén lấy .dylib
-        mkdir -p extracted
-        dpkg-deb -x "$DEB_FILE" extracted/
-        DYLIB_PATH=$(find extracted -name "*.dylib" | head -n 1)
-        
-        # 3. Gửi tệp qua Telegram
-        curl -v -F "chat_id=${{ secrets.TELEGRAM_CHAT_ID }}" \
-             -F "document=@$DYLIB_PATH" \
-             -F "caption=✅ Build thành công! Đây là tệp .dylib của bạn." \
-             "https://api.telegram.org/bot${{ secrets.TELEGRAM_TOKEN }}/sendDocument"
+        if: success()
+        run: |
+          # Tìm file .deb
+          DEB_FILE=$(ls packages/*.deb | head -n 1)
+          
+          # Giải nén lấy .dylib
+          mkdir -p extracted
+          dpkg-deb -x "$DEB_FILE" extracted/
+          DYLIB_FILE=$(find extracted -name "*.dylib" | head -n 1)
+          
+          # Gửi file qua Telegram
+          curl -v -F "chat_id=${{ secrets.TELEGRAM_CHAT_ID }}" \
+               -F "document=@$DYLIB_FILE" \
+               -F "caption=✅ Build thành công! Đây là tệp .dylib của bạn." \
+               "https://api.telegram.org/bot${{ secrets.TELEGRAM_TOKEN }}/sendDocument"
