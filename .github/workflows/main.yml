@@ -22,10 +22,12 @@ jobs:
       - name: SDK_Toolchain
         run: |
           export THEOS=$GITHUB_WORKSPACE/theos
+          # Giải quyết lỗi định dạng tar từ image_67.png
           curl -LO https://github.com/theos/sdks/archive/master.zip
           unzip -q master.zip
           mkdir -p $THEOS/sdks
           mv sdks-master/* $THEOS/sdks/
+          # Tải toolchain biên dịch cho iOS
           curl -LO https://github.com/sbingner/llvm-project/releases/download/v10.0.0-1/linux-ios-arm64e-clang-toolchain.tar.lzma
           mkdir -p $THEOS/toolchain
           tar -I xz -xf linux-ios-arm64e-clang-toolchain.tar.lzma -C $THEOS/toolchain
@@ -33,27 +35,31 @@ jobs:
       - name: Build Package
         run: |
           export THEOS=$GITHUB_WORKSPACE/theos
-          # Kiểm tra file trong repo trước khi build
-          ls -R
-          # Biên dịch và kiểm tra lỗi chi tiết
+          # Thực hiện biên dịch chính thức
           make clean package FINALPACKAGE=1 DEBUG=0
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: DuyLoc-Build
+          path: packages/*.deb
 
       - name: Extract Dylib and Send to Telegram
         if: success()
         run: |
-          # 1. Tìm file .deb
+          # 1. Tìm tệp .deb vừa ra lò
           DEB_FILE=$(find packages -name "*.deb" | head -n 1)
           
           if [ -z "$DEB_FILE" ]; then
-            echo "Lỗi: Không tìm thấy file .deb nào được tạo ra!"
+            echo "Lỗi: Không tìm thấy file .deb nào!"
             exit 1
           fi
 
-          # 2. Giải nén và ép tìm mọi file .dylib
+          # 2. Giải nén toàn bộ nội dung deb để tìm dylib (Sửa lỗi image_72.png)
           mkdir -p ./temp_extract
           dpkg-deb -x "$DEB_FILE" ./temp_extract
           
-          # Lệnh tìm kiếm mạnh mẽ hơn, quét mọi ngóc ngách
+          # Tìm kiếm file .dylib trong mọi thư mục con
           DYLIB_PATH=$(find ./temp_extract -name "*.dylib" -type f | head -n 1)
           
           # 3. Gửi file qua Telegram
@@ -63,7 +69,7 @@ jobs:
                  -F "caption=✅ Đã trích xuất thành công dylib từ file deb!" \
                  "https://api.telegram.org/bot${{ secrets.TELEGRAM_TOKEN }}/sendDocument"
           else
-            echo "Lỗi: File .deb không chứa .dylib. Đây là danh sách các file bên trong deb để bạn kiểm tra:"
+            echo "Lỗi: Không tìm thấy file .dylib bên trong deb. Kiểm tra lại cấu trúc Makefile."
             find ./temp_extract
             exit 1
           fi
