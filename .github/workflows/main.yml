@@ -20,20 +20,23 @@ jobs:
           sudo git clone --recursive https://github.com/theos/theos.git /opt/theos
           sudo chown -R $USER:$GROUP /opt/theos
 
-      - name: SDK_Toolchain
-        run: |
-          # Tai va giai nen SDK 14.5
+            - name: SDK_Toolchain
+         run: |
+          # Xóa các tệp lỗi cũ nếu có
+          rm -rf $THEOS/sdks/*
+          
+          # Tải SDK iOS chính thức từ kho của Theos (Định dạng .zip ổn định hơn)
           curl -LO https://github.com/theos/sdks/archive/master.zip
           unzip -q master.zip
-          mkdir -p /opt/theos/sdks
-          mv sdks-master/iPhoneOS14.5.sdk /opt/theos/sdks/
-          rm -rf sdks-master master.zip
+          
+          # Di chuyển vào thư mục Theos
+          mkdir -p $THEOS/sdks
+          mv sdks-master/* $THEOS/sdks/
+          
+          # Tải Toolchain biên dịch (Linux arm64)
+          curl -LO https://github.com/sbingner/llvm-project/releases/download/v10.0.0-1/linux-ios-arm64e-clang-toolchain.tar.lzma
+          tar -I xz -xf linux-ios-arm64e-clang-toolchain.tar.lzma -C $THEOS/toolchain
 
-          # Tai Toolchain on dinh cho Linux
-          curl -L https://github.com/theos/toolchain/releases/download/linux-arm64/toolchain-linux-arm64.tar.gz -o t.tar.gz
-          mkdir -p /opt/theos/toolchain
-          tar -xf t.tar.gz -C /opt/theos/toolchain
-          rm t.tar.gz
 
       - name: Build Package
         run: |
