@@ -2,33 +2,45 @@ name: Build
 on:
   push:
     branches: [ "main" ]
+  repository_dispatch:
+    types: [telegram_build]
   workflow_dispatch:
+
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      - name: Setup
+
+      - name: Setup Theos
         run: |
           sudo apt-get update
           sudo apt-get install -y build-essential perl git curl libssl-dev
           sudo git clone --recursive https://github.com/theos/theos.git /opt/theos
           sudo chown -R $USER:$GROUP /opt/theos
+
       - name: SDK_Toolchain
         run: |
+          # Tai va giai nen SDK 14.5
           curl -LO https://github.com/theos/sdks/archive/master.zip
           unzip -q master.zip
           mkdir -p /opt/theos/sdks
           mv sdks-master/iPhoneOS14.5.sdk /opt/theos/sdks/
+          rm -rf sdks-master master.zip
+
+          # Tai Toolchain on dinh cho Linux
           curl -L https://github.com/theos/toolchain/releases/download/linux-arm64/toolchain-linux-arm64.tar.gz -o t.tar.gz
           mkdir -p /opt/theos/toolchain
           tar -xf t.tar.gz -C /opt/theos/toolchain
-      - name: Build
+          rm t.tar.gz
+
+      - name: Build Package
         run: |
           export THEOS=/opt/theos
           make package FINALPACKAGE=1
-      - name: Upload
+
+      - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
           name: DuyLocIosCheat-Dylib
