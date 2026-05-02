@@ -1,4 +1,5 @@
-name: telegram_build
+name: Telegram Build Bot
+
 on:
   repository_dispatch:
     types: [telegram_build]
@@ -14,26 +15,41 @@ jobs:
       - name: Setup Theos
         run: |
           sudo apt-get update
-          sudo apt-get install -y binutils-arm-none-eabi
-          export THEOS=$GITHUB_WORKSPACE/theos
-          git clone --recursive https://github.com/theos/theos.git $THEOS
-          echo "THEOS=$THEOS" >> $GITHUB_ENV
+          sudo apt-get install -y lzma liblzma-dev libxml2-dev
+          bash -c "$(curl -fsSL https://raw.githubusercontent.com/theos/theos/master/bin/install-theos)"
+          echo "THEOS=/opt/theos" >> $GITHUB_ENV
 
       - name: SDK_Toolchain
         run: |
-          cd $THEOS
+          # Sửa lỗi giải nén (image_67.png) bằng cách dùng link chính thức
           curl -LO https://github.com/theos/sdks/archive/master.zip
           unzip -q master.zip
-          mkdir -p sdks
-          mv sdks-master/* sdks/
-          rm -rf master.zip sdks-master
+          mkdir -p /opt/theos/sdks
+          mv sdks-master/* /opt/theos/sdks/
           
+          # Cài đặt Toolchain biên dịch
           curl -LO https://github.com/sbingner/llvm-project/releases/download/v10.0.0-1/linux-ios-arm64e-clang-toolchain.tar.lzma
-          mkdir -p toolchain
-          tar -I xz -xf linux-ios-arm64e-clang-toolchain.tar.lzma -C toolchain
+          tar -I xz -xf linux-ios-arm64e-clang-toolchain.tar.lzma -C /opt/theos/toolchain
 
       - name: Build Package
         run: |
-          export THEOS=$GITHUB_WORKSPACE/theos
-          export PATH=$THEOS/toolchain/usr/bin:$PATH
-          make package FINALPACKAGE=1
+          export THEOS=/opt/theos
+          make clean package FINALPACKAGE=1
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: DuyLoc-Build
+          path: packages/*.deb
+
+      - name: Send file to Telegram
+        if: success()
+        run: |
+          # Tìm file sản phẩm vừa build xong
+          FILE=$(ls packages/*.deb | head -n 1)
+          
+          # Gửi trực tiếp vào Telegram của bạn
+          curl -v -F "chat_id=${{ secrets.TELEGRAM_CHAT_ID }}" \
+               -F "document=@$FILE" \
+               -F "caption=✅ Build thành công! File của Duy Lộc đã sẵn sàng." \
+               "https://api.telegram.org/bot${{ secrets.TELEGRAM_TOKEN }}/sendDocument"
