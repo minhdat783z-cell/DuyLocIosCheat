@@ -31,16 +31,16 @@ jobs:
           mkdir -p $THEOS/toolchain
           tar -I xz -xf linux-ios-arm64e-clang-toolchain.tar.lzma -C $THEOS/toolchain
 
-            - name: Build and Send
-              run: |
+      - name: Build and Send
+        run: |
           export THEOS=$GITHUB_WORKSPACE/theos
-          # Sửa lại đường dẫn PATH để khớp với thư mục toolchain đã cài đặt
-          export PATH=$THEOS/toolchain/linux/iphone/bin:$THEOS/bin:$PATH
+          # Cấu hình PATH chính xác cho Toolchain
+          export PATH=$THEOS/bin:$THEOS/toolchain/usr/bin:$PATH
           
-          # Lệnh biên dịch
+          # Biên dịch
           make clean package FINALPACKAGE=1
           
-          # Tìm tệp sản phẩm (.deb hoặc .dylib)
+          # Tìm file .deb (ưu tiên) hoặc .dylib
           SEND_FILE=$(find packages -name "*.deb" | head -n 1)
           if [ -z "$SEND_FILE" ]; then
             SEND_FILE=$(find .theos/obj -name "*.dylib" | head -n 1)
