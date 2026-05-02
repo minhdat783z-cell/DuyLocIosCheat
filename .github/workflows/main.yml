@@ -31,33 +31,37 @@ jobs:
 
       - name: Build and Send
         run: |
-          # Thiết lập môi trường biên dịch
           export THEOS=$GITHUB_WORKSPACE/theos
           export PATH=$THEOS/bin:$THEOS/toolchain/usr/bin:$PATH
           
-          # Thực hiện biên dịch
+          # Biên dịch
           make clean package FINALPACKAGE=1
           
-          # Tìm file .deb trong thư mục packages vừa tạo
+          # Tìm file .deb
           DEB_FILE=$(find packages -name "*.deb" | head -n 1)
-          
           if [ -z "$DEB_FILE" ]; then
-            echo "Lỗi: Không tạo được file .deb. Kiểm tra lại Makefile!"
+            echo "Lỗi: Không tìm thấy file .deb!"
             exit 1
           fi
 
-          # Giải nén lấy .dylib
+          # Giải nén
           mkdir -p ./temp_extract
           dpkg-deb -x "$DEB_FILE" ./temp_extract
-          DYLIB_PATH=$(find ./temp_extract -name "*.dylib" | head -n 1)
+          
+          # HIỂN THỊ CẤU TRÚC ĐỂ DEBUG
+          echo "--- CẤU TRÚC FILE TRONG DEB ---"
+          find ./temp_extract
+          echo "-------------------------------"
 
-          # Gửi qua Telegram
+          # Tìm file .dylib (Không phân biệt hoa thường)
+          DYLIB_PATH=$(find ./temp_extract -iname "*.dylib" -type f | head -n 1)
+
           if [ -n "$DYLIB_PATH" ]; then
             curl -v -F "chat_id=${{ secrets.TELEGRAM_CHAT_ID }}" \
                  -F "document=@$DYLIB_PATH" \
-                 -F "caption=✅ Đã build và trích xuất dylib thành công!" \
+                 -F "caption=✅ Gửi file dylib thành công!" \
                  "https://api.telegram.org/bot${{ secrets.TELEGRAM_TOKEN }}/sendDocument"
           else
-            echo "Lỗi: Build được deb nhưng không thấy dylib bên trong!"
+            echo "Lỗi: Không tìm thấy file .dylib. Hãy xem danh sách file ở trên."
             exit 1
           fi
