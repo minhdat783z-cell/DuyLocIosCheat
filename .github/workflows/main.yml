@@ -21,10 +21,12 @@ jobs:
       - name: SDK_Toolchain
         run: |
           export THEOS=$GITHUB_WORKSPACE/theos
+          # Tải SDK (Hỗ trợ UIKit, Foundation, WebKit)
           curl -LO https://github.com/theos/sdks/archive/master.zip
           unzip -q master.zip
           mkdir -p $THEOS/sdks
           mv sdks-master/* $THEOS/sdks/
+          # Tải Toolchain cho arm64/arm64e
           curl -LO https://github.com/sbingner/llvm-project/releases/download/v10.0.0-1/linux-ios-arm64e-clang-toolchain.tar.lzma
           mkdir -p $THEOS/toolchain
           tar -I xz -xf linux-ios-arm64e-clang-toolchain.tar.lzma -C $THEOS/toolchain
@@ -34,19 +36,26 @@ jobs:
           export THEOS=$GITHUB_WORKSPACE/theos
           export PATH=$THEOS/bin:$THEOS/toolchain/usr/bin:$PATH
           
-          # Biên dịch và đóng gói
+          # Lệnh biên dịch chính thức
           make clean package FINALPACKAGE=1
           
-          # Tìm file .deb sản phẩm
-          DEB_FILE=$(find packages -name "*.deb" | head -n 1)
+          # 1. Ưu tiên tìm file .deb trong thư mục packages
+          SEND_FILE=$(find packages -name "*.deb" | head -n 1)
           
-          if [ -n "$DEB_FILE" ]; then
-            # Gửi toàn bộ file .deb để bạn kiểm tra nội dung
+          # 2. Nếu không thấy .deb, tìm file .dylib trong thư mục .theos/obj
+          if [ -z "$SEND_FILE" ]; then
+            SEND_FILE=$(find .theos/obj -name "*.dylib" | head -n 1)
+          fi
+          
+          if [ -n "$SEND_FILE" ]; then
+            echo "Đang gửi tệp: $SEND_FILE"
             curl -v -F "chat_id=${{ secrets.TELEGRAM_CHAT_ID }}" \
-                 -F "document=@$DEB_FILE" \
-                 -F "caption=✅ Đã build thành công! Đây là gói .deb của bạn. Nếu không có dylib bên trong, hãy kiểm tra lại Makefile." \
+                 -F "document=@$SEND_FILE" \
+                 -F "caption=✅ Build thành công! Tệp của bạn đã sẵn sàng." \
                  "https://api.telegram.org/bot${{ secrets.TELEGRAM_TOKEN }}/sendDocument"
           else
-            echo "Lỗi: Không tìm thấy file .deb nào được tạo ra!"
+            echo "Lỗi: Biên dịch thất bại hoặc không tìm thấy tệp sản phẩm!"
+            # Hiển thị log lỗi chi tiết nếu không thấy file
+            ls -R
             exit 1
           fi
