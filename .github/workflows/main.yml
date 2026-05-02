@@ -31,31 +31,27 @@ jobs:
           mkdir -p $THEOS/toolchain
           tar -I xz -xf linux-ios-arm64e-clang-toolchain.tar.lzma -C $THEOS/toolchain
 
-      - name: Build and Send
-        run: |
+            - name: Build and Send
+              run: |
           export THEOS=$GITHUB_WORKSPACE/theos
-          export PATH=$THEOS/bin:$THEOS/toolchain/usr/bin:$PATH
+          # Sửa lại đường dẫn PATH để khớp với thư mục toolchain đã cài đặt
+          export PATH=$THEOS/toolchain/linux/iphone/bin:$THEOS/bin:$PATH
           
-          # Lệnh biên dịch chính thức
+          # Lệnh biên dịch
           make clean package FINALPACKAGE=1
           
-          # 1. Ưu tiên tìm file .deb trong thư mục packages
+          # Tìm tệp sản phẩm (.deb hoặc .dylib)
           SEND_FILE=$(find packages -name "*.deb" | head -n 1)
-          
-          # 2. Nếu không thấy .deb, tìm file .dylib trong thư mục .theos/obj
           if [ -z "$SEND_FILE" ]; then
             SEND_FILE=$(find .theos/obj -name "*.dylib" | head -n 1)
           fi
           
           if [ -n "$SEND_FILE" ]; then
-            echo "Đang gửi tệp: $SEND_FILE"
             curl -v -F "chat_id=${{ secrets.TELEGRAM_CHAT_ID }}" \
                  -F "document=@$SEND_FILE" \
-                 -F "caption=✅ Build thành công! Tệp của bạn đã sẵn sàng." \
+                 -F "caption=✅ Build thành công! Tệp của bạn đây." \
                  "https://api.telegram.org/bot${{ secrets.TELEGRAM_TOKEN }}/sendDocument"
           else
-            echo "Lỗi: Biên dịch thất bại hoặc không tìm thấy tệp sản phẩm!"
-            # Hiển thị log lỗi chi tiết nếu không thấy file
-            ls -R
+            echo "Lỗi: Không tìm thấy file sản phẩm!"
             exit 1
           fi
