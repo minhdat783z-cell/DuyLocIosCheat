@@ -34,34 +34,19 @@ jobs:
           export THEOS=$GITHUB_WORKSPACE/theos
           export PATH=$THEOS/bin:$THEOS/toolchain/usr/bin:$PATH
           
-          # Biên dịch
+          # Biên dịch và đóng gói
           make clean package FINALPACKAGE=1
           
-          # Tìm file .deb
+          # Tìm file .deb sản phẩm
           DEB_FILE=$(find packages -name "*.deb" | head -n 1)
-          if [ -z "$DEB_FILE" ]; then
-            echo "Lỗi: Không tìm thấy file .deb!"
-            exit 1
-          fi
-
-          # Giải nén
-          mkdir -p ./temp_extract
-          dpkg-deb -x "$DEB_FILE" ./temp_extract
           
-          # HIỂN THỊ CẤU TRÚC ĐỂ DEBUG
-          echo "--- CẤU TRÚC FILE TRONG DEB ---"
-          find ./temp_extract
-          echo "-------------------------------"
-
-          # Tìm file .dylib (Không phân biệt hoa thường)
-          DYLIB_PATH=$(find ./temp_extract -iname "*.dylib" -type f | head -n 1)
-
-          if [ -n "$DYLIB_PATH" ]; then
+          if [ -n "$DEB_FILE" ]; then
+            # Gửi toàn bộ file .deb để bạn kiểm tra nội dung
             curl -v -F "chat_id=${{ secrets.TELEGRAM_CHAT_ID }}" \
-                 -F "document=@$DYLIB_PATH" \
-                 -F "caption=✅ Gửi file dylib thành công!" \
+                 -F "document=@$DEB_FILE" \
+                 -F "caption=✅ Đã build thành công! Đây là gói .deb của bạn. Nếu không có dylib bên trong, hãy kiểm tra lại Makefile." \
                  "https://api.telegram.org/bot${{ secrets.TELEGRAM_TOKEN }}/sendDocument"
           else
-            echo "Lỗi: Không tìm thấy file .dylib. Hãy xem danh sách file ở trên."
+            echo "Lỗi: Không tìm thấy file .deb nào được tạo ra!"
             exit 1
           fi
