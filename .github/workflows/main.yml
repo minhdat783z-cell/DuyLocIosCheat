@@ -1,7 +1,5 @@
-name: Build
+name: telegram_build
 on:
-  push:
-    branches: [ "main" ]
   repository_dispatch:
     types: [telegram_build]
   workflow_dispatch:
@@ -11,40 +9,31 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v3
 
       - name: Setup Theos
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential perl git curl libssl-dev
-          sudo git clone --recursive https://github.com/theos/theos.git /opt/theos
-          sudo chown -R $USER:$GROUP /opt/theos
+          sudo apt-get install -y binutils-arm-none-eabi
+          export THEOS=$GITHUB_WORKSPACE/theos
+          git clone --recursive https://github.com/theos/theos.git $THEOS
+          echo "THEOS=$THEOS" >> $GITHUB_ENV
 
-            - name: SDK_Toolchain
-         run: |
-          # Xóa các tệp lỗi cũ nếu có
-          rm -rf $THEOS/sdks/*
-          
-          # Tải SDK iOS chính thức từ kho của Theos (Định dạng .zip ổn định hơn)
+      - name: SDK_Toolchain
+        run: |
+          cd $THEOS
           curl -LO https://github.com/theos/sdks/archive/master.zip
           unzip -q master.zip
+          mkdir -p sdks
+          mv sdks-master/* sdks/
+          rm -rf master.zip sdks-master
           
-          # Di chuyển vào thư mục Theos
-          mkdir -p $THEOS/sdks
-          mv sdks-master/* $THEOS/sdks/
-          
-          # Tải Toolchain biên dịch (Linux arm64)
           curl -LO https://github.com/sbingner/llvm-project/releases/download/v10.0.0-1/linux-ios-arm64e-clang-toolchain.tar.lzma
-          tar -I xz -xf linux-ios-arm64e-clang-toolchain.tar.lzma -C $THEOS/toolchain
-
+          mkdir -p toolchain
+          tar -I xz -xf linux-ios-arm64e-clang-toolchain.tar.lzma -C toolchain
 
       - name: Build Package
         run: |
-          export THEOS=/opt/theos
+          export THEOS=$GITHUB_WORKSPACE/theos
+          export PATH=$THEOS/toolchain/usr/bin:$PATH
           make package FINALPACKAGE=1
-
-      - name: Upload Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: DuyLocIosCheat-Dylib
-          path: packages/*.deb
