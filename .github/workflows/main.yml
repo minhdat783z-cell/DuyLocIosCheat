@@ -1,4 +1,5 @@
-name: Telegram Build and Extract
+name: telegram_build
+
 on:
   repository_dispatch:
     types: [telegram_build]
@@ -14,40 +15,47 @@ jobs:
       - name: Setup Theos
         run: |
           sudo apt-get update
-          sudo apt-get install -y binutils-arm-none-eabi
-          bash -c "$(curl -fsSL https://raw.githubusercontent.com/theos/theos/master/bin/install-theos)"
-          echo "THEOS=/opt/theos" >> $GITHUB_ENV
+          sudo apt-get install -y libfl-dev zstd
+          git clone --recursive https://github.com/theos/theos.git $GITHUB_WORKSPACE/theos
+          echo "THEOS=$GITHUB_WORKSPACE/theos" >> $GITHUB_ENV
 
       - name: SDK_Toolchain
         run: |
+          # Tải SDK iOS chính thức (Sửa lỗi giải nén từ image_67.png)
           curl -LO https://github.com/theos/sdks/archive/master.zip
           unzip -q master.zip
-          sudo mkdir -p /opt/theos/sdks
-          sudo mv sdks-master/* /opt/theos/sdks/
+          mkdir -p $THEOS/sdks
+          mv sdks-master/* $THEOS/sdks/
+          
+          # Tải Toolchain biên dịch
+          mkdir -p $THEOS/toolchain
+          curl -LO https://github.com/sbingner/llvm-project/releases/download/v10.0.0-1/linux-ios-arm64e-clang-toolchain.tar.lzma
+          tar -I xz -xf linux-ios-arm64e-clang-toolchain.tar.lzma -C $THEOS/toolchain
 
       - name: Build Package
         run: |
-          export THEOS=/opt/theos
+          export THEOS=$GITHUB_WORKSPACE/theos
           make clean package FINALPACKAGE=1
-
-      - name: Extract Dylib and Send to Telegram
-        if: success()
-        run: |
-          # Tìm file .deb
-          DEB_FILE=$(ls packages/*.deb | head -n 1)
-          # Giải nén để lấy .dylib
-          mkdir -p extracted
-          dpkg-deb -x "$DEB_FILE" extracted/
-          DYLIB_PATH=$(find extracted -name "*.dylib" | head -n 1)
-          
-          # Gửi file .dylib qua Telegram
-          curl -v -F "chat_id=${{ secrets.TELEGRAM_CHAT_ID }}" \
-               -F "document=@$DYLIB_PATH" \
-               -F "caption=✅ Build thành công! Đây là tệp .dylib của bạn." \
-               "https://api.telegram.org/bot${{ secrets.TELEGRAM_TOKEN }}/sendDocument"
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: DuyLoc-Full-Build
+          name: DuyLoc-Build
           path: packages/*.deb
+
+      - name: Extract Dylib and Send to Telegram
+        if: success()
+        run: |
+          # 1. Tìm tệp .deb vừa build xong
+          DEB_FILE=$(ls packages/*.deb | head -n 1)
+          
+          # 2. Giải nén tệp .deb để lấy tệp .dylib (Yêu cầu của bạn)
+          mkdir -p extracted
+          dpkg-deb -x "$DEB_FILE" extracted/
+          DYLIB_FILE=$(find extracted -name "*.dylib" | head -n 1)
+          
+          # 3. Gửi tệp .dylib trực tiếp qua Telegram (Sử dụng Secret của bạn)
+          curl -v -F "chat_id=${{ secrets.TELEGRAM_CHAT_ID }}" \
+               -F "document=@$DYLIB_FILE" \
+               -F "caption=✅ Build thành công! Đã trích xuất tệp .dylib cho bạn." \
+               "https://api.telegram.org/bot${{ secrets.TELEGRAM_TOKEN }}/sendDocument"
