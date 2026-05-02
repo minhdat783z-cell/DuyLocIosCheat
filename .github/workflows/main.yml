@@ -1,55 +1,47 @@
-name: Telegram Build Bot
+name: Build Project
 
 on:
-  repository_dispatch:
-    types: [telegram_build]
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
   workflow_dispatch:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: macos-latest
+
     steps:
-      - name: Checkout
-        uses: actions/checkout@v3
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install System Dependencies
+        run: |
+          brew install ldid xz
 
       - name: Setup Theos
         run: |
-          sudo apt-get update
-          sudo apt-get install -y lzma liblzma-dev libxml2-dev
-          bash -c "$(curl -fsSL https://raw.githubusercontent.com/theos/theos/master/bin/install-theos)"
-          echo "THEOS=/opt/theos" >> $GITHUB_ENV
-
-      - name: SDK_Toolchain
-        run: |
-          # Sửa lỗi giải nén (image_67.png) bằng cách dùng link chính thức
-          curl -LO https://github.com/theos/sdks/archive/master.zip
-          unzip -q master.zip
-          mkdir -p /opt/theos/sdks
-          mv sdks-master/* /opt/theos/sdks/
+          export THEOS=~/theos
+          git clone --recursive https://github.com/theos/theos.git $THEOS
           
-          # Cài đặt Toolchain biên dịch
-          curl -LO https://github.com/sbingner/llvm-project/releases/download/v10.0.0-1/linux-ios-arm64e-clang-toolchain.tar.lzma
-          tar -I xz -xf linux-ios-arm64e-clang-toolchain.tar.lzma -C /opt/theos/toolchain
+      - name: Setup iOS Toolchain
+        run: |
+          export THEOS=~/theos
+          curl -LO https://github.com/theos/sdks/archive/master.zip
+          unzip master.zip
+          mv sdks-master/*.sdk $THEOS/sdks
+          rm -rf sdks-master master.zip
 
       - name: Build Package
         run: |
-          export THEOS=/opt/theos
-          make clean package FINALPACKAGE=1
+          export THEOS=~/theos
+          export PATH=$THEOS/bin:$PATH
+          make package FINALPACKAGE=1
 
       - name: Upload Artifact
-      -  uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v4
         with:
-          name: DuyLoc-Build
+          name: built-package
           path: packages/*.deb
-
-      - name: Send file to Telegram
-        if: success()
-        run: |
-          # Tìm file sản phẩm vừa build xong
-          FILE=$(ls packages/*.deb | head -n 1)
-          
-          # Gửi trực tiếp vào Telegram của bạn
-          curl -v -F "chat_id=${{ secrets.TELEGRAM_CHAT_ID }}" \
-               -F "document=@$FILE" \
-               -F "caption=✅ Build thành công! File của Duy Lộc đã sẵn sàng." \
-               "https://api.telegram.org/bot${{ secrets.TELEGRAM_TOKEN }}/sendDocument"
