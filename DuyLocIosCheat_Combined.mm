@@ -129,9 +129,15 @@ void patch_memory(uintptr_t address, const char *hex) {
 - (instancetype)initWithFrame:(CGRect)frame {
     self = [super initWithFrame:frame];
     if (self) {
+        // Thiết lập Window để luôn nổi lên trên cùng
         self.windowLevel = UIWindowLevelStatusBar + 100.0;
         self.backgroundColor = [UIColor clearColor];
         [self setHidden:NO];
+        
+        // Tránh việc bị hệ thống tự động ẩn
+        if (@available(iOS 13.0, *)) {
+            self.windowScene = (UIWindowScene *)[[[UIApplication sharedApplication] connectedScenes] anyObject];
+        }
 
         WKWebViewConfiguration *config = [[WKWebViewConfiguration alloc] init];
         [config.userContentController addScriptMessageHandler:self name:@"duyloc"];
@@ -140,7 +146,7 @@ void patch_memory(uintptr_t address, const char *hex) {
         self.webMenu.backgroundColor = [UIColor clearColor];
         self.webMenu.scrollView.backgroundColor = [UIColor clearColor];
         self.webMenu.opaque = NO;
-        self.webMenu.scrollView.scrollEnabled = NO; // Tắt cuộn toàn trang
+        self.webMenu.scrollView.scrollEnabled = NO;
         
         [self.webMenu loadHTMLString:htmlCode baseURL:nil];
         [self addSubview:self.webMenu];
@@ -164,20 +170,13 @@ void patch_memory(uintptr_t address, const char *hex) {
     }
 }
 
-// Cho phép menu xuyên thấu các vùng không có UI
+// Sửa lại hitTest để có thể bấm được vào Menu Panel
 - (UIView *)hitTest:(CGPoint)point withEvent:(UIEvent *)event {
-    UIView *view = [super hitTest:point withEvent:event];
-    if (view == self.webMenu || view == self) {
-        return nil; // Cho phép chạm xuyên qua game nếu không bấm vào menu (Logic này cần tùy chỉnh thêm)
+    UIView *hitView = [super hitTest:point withEvent:event];
+    // Nếu chạm vào vùng không phải Menu, cho phép chạm xuyên qua game
+    if (hitView == self.webMenu || hitView == self) {
+        return nil;
     }
-    return view;
+    return hitView;
 }
 @end
-
-__attribute__((constructor))
-static void initialize() {
-    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(5 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
-        static DuyLocLoader *mainMenu;
-        mainMenu = [[DuyLocLoader alloc] initWithFrame:[[UIScreen mainScreen] bounds]];
-    });
-}
