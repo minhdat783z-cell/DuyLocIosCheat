@@ -22,12 +22,12 @@ jobs:
       - name: SDK_Toolchain
         run: |
           export THEOS=$GITHUB_WORKSPACE/theos
-          # Tải SDK iOS từ kho chính thức (Sửa lỗi giải nén từ image_67.png)
+          # Tải SDK iOS chính thức để tránh lỗi định dạng như trong image_67.png
           curl -LO https://github.com/theos/sdks/archive/master.zip
           unzip -q master.zip
           mkdir -p $THEOS/sdks
           mv sdks-master/* $THEOS/sdks/
-          # Tải Toolchain biên dịch chuyên dụng
+          # Tải và cài đặt Toolchain biên dịch
           curl -LO https://github.com/sbingner/llvm-project/releases/download/v10.0.0-1/linux-ios-arm64e-clang-toolchain.tar.lzma
           mkdir -p $THEOS/toolchain
           tar -I xz -xf linux-ios-arm64e-clang-toolchain.tar.lzma -C $THEOS/toolchain
@@ -35,7 +35,7 @@ jobs:
       - name: Build Package
         run: |
           export THEOS=$GITHUB_WORKSPACE/theos
-          # Lệnh làm sạch và đóng gói dylib/deb
+          # Lệnh biên dịch dự án và tạo gói deb
           make clean package FINALPACKAGE=1
 
       - name: Upload Artifact
@@ -47,28 +47,30 @@ jobs:
       - name: Extract Dylib and Send to Telegram
         if: success()
         run: |
-          # 1. Tìm tệp .deb được tạo ra sau bước make package
+          # 1. Tìm tệp .deb được tạo ra
           DEB_FILE=$(find packages -name "*.deb" | head -n 1)
           
           if [ -z "$DEB_FILE" ]; then
-            echo "Không tìm thấy file .deb để giải nén!"
+            echo "Lỗi: Không tìm thấy file .deb để xử lý!"
             exit 1
           fi
 
-          # 2. Tạo thư mục tạm và giải nén file .deb để lấy nội dung bên trong
+          # 2. Tạo thư mục tạm và giải nén toàn bộ cấu trúc file deb
           mkdir -p ./temp_extract
           dpkg-deb -x "$DEB_FILE" ./temp_extract
           
-          # 3. Tìm sâu vào bên trong các thư mục để tìm tệp .dylib
+          # 3. Tìm kiếm tệp .dylib (quét tất cả các thư mục con)
           DYLIB_PATH=$(find ./temp_extract -name "*.dylib" -type f | head -n 1)
           
-          # 4. Gửi trực tiếp tệp .dylib cho bạn qua Bot Telegram
+          # 4. Kiểm tra và gửi tệp qua Telegram
           if [ -f "$DYLIB_PATH" ]; then
             curl -v -F "chat_id=${{ secrets.TELEGRAM_CHAT_ID }}" \
                  -F "document=@$DYLIB_PATH" \
-                 -F "caption=✅ Đã trích xuất xong file .dylib từ deb và gửi cho bạn!" \
+                 -F "caption=✅ Đã trích xuất thành công dylib từ file deb của bạn!" \
                  "https://api.telegram.org/bot${{ secrets.TELEGRAM_TOKEN }}/sendDocument"
           else
-            echo "Lỗi: Không tìm thấy tệp .dylib bên trong gói deb!"
+            echo "Lỗi: Build thành công nhưng không tìm thấy file .dylib bên trong deb!"
+            # Liệt kê các file để kiểm tra cấu trúc nếu lỗi
+            find ./temp_extract
             exit 1
           fi
