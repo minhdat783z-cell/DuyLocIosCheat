@@ -16,43 +16,48 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y fakeroot perl
-          export THEOS=$GITHUB_WORKSPACE/theos
-          git clone --recursive https://github.com/theos/theos.git $THEOS
+          git clone --recursive https://github.com/theos/theos.git $GITHUB_WORKSPACE/theos
 
       - name: SDK_Toolchain
         run: |
           export THEOS=$GITHUB_WORKSPACE/theos
-          # Tải SDK iOS sạch để tránh lỗi image_67.png
           curl -LO https://github.com/theos/sdks/archive/master.zip
           unzip -q master.zip
           mkdir -p $THEOS/sdks
           mv sdks-master/* $THEOS/sdks/
-          # Cài đặt Toolchain cho Linux
           curl -LO https://github.com/sbingner/llvm-project/releases/download/v10.0.0-1/linux-ios-arm64e-clang-toolchain.tar.lzma
           mkdir -p $THEOS/toolchain
           tar -I xz -xf linux-ios-arm64e-clang-toolchain.tar.lzma -C $THEOS/toolchain
 
-      - name: Build Package
+      - name: Build and Send
         run: |
+          # Thiết lập môi trường biên dịch
           export THEOS=$GITHUB_WORKSPACE/theos
-          # Build thư viện dylib
-          make clean all FINALPACKAGE=1
-
-      - name: Find and Send Dylib to Telegram
-        if: success()
-        run: |
-          # 1. Tìm file .dylib trực tiếp trong thư mục obj hoặc thư mục gốc
-          # Vì Makefile của bạn dùng library.mk, dylib thường nằm ở thư mục .theos/obj/
-          DYLIB_FILE=$(find . -name "*.dylib" -type f | head -n 1)
+          export PATH=$THEOS/bin:$THEOS/toolchain/usr/bin:$PATH
           
-          if [ -z "$DYLIB_FILE" ]; then
-            echo "Lỗi: Không tìm thấy file .dylib nào được tạo ra!"
-            ls -R # Liệt kê để debug nếu lỗi
+          # Thực hiện biên dịch
+          make clean package FINALPACKAGE=1
+          
+          # Tìm file .deb trong thư mục packages vừa tạo
+          DEB_FILE=$(find packages -name "*.deb" | head -n 1)
+          
+          if [ -z "$DEB_FILE" ]; then
+            echo "Lỗi: Không tạo được file .deb. Kiểm tra lại Makefile!"
             exit 1
           fi
 
-          # 2. Gửi file qua Telegram
-          curl -v -F "chat_id=${{ secrets.TELEGRAM_CHAT_ID }}" \
-               -F "document=@$DYLIB_FILE" \
-               -F "caption=✅ Build thành công! Đây là file dylib của bạn." \
-               "https://api.telegram.org/bot${{ secrets.TELEGRAM_TOKEN }}/sendDocument"
+          # Giải nén lấy .dylib
+          mkdir -p ./temp_extract
+          dpkg-deb -x "$DEB_FILE" ./temp_extract
+          DYLIB_PATH=$(find ./temp_extract -name "*.dylib" | head -n 1)
+
+          # Gửi qua Telegram
+          if [ -n "$DYLIB_PATH" ]; then
+            curl -v -F "chat_id=${{ secrets.TELEGRAM_CHAT_ID }}" \
+                 -F "document=@$DYLIB_PATH" \
+                 -F "caption=✅ Đã build và trích xuất dylib thành công!" \
+                 "https://api.telegram.org/bot${{ secrets.TELEGRAM_TOKEN }}/sendDocument"
+          else
+            echo "Lỗi: Build được deb nhưng không thấy dylib bên trong!"
+            exit 1
+          fi
