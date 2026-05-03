@@ -21,12 +21,12 @@ jobs:
       - name: SDK_Toolchain
         run: |
           export THEOS=$GITHUB_WORKSPACE/theos
-          # Tải SDK (Hỗ trợ UIKit, Foundation, WebKit)
+          # Tải SDK
           curl -LO https://github.com/theos/sdks/archive/master.zip
           unzip -q master.zip
           mkdir -p $THEOS/sdks
           mv sdks-master/* $THEOS/sdks/
-          # Tải Toolchain cho arm64/arm64e
+          # Tải Toolchain Linux cho arm64/arm64e
           curl -LO https://github.com/sbingner/llvm-project/releases/download/v10.0.0-1/linux-ios-arm64e-clang-toolchain.tar.lzma
           mkdir -p $THEOS/toolchain
           tar -I xz -xf linux-ios-arm64e-clang-toolchain.tar.lzma -C $THEOS/toolchain
@@ -34,25 +34,24 @@ jobs:
       - name: Build and Send
         run: |
           export THEOS=$GITHUB_WORKSPACE/theos
-          # Thiết lập PATH để hệ thống nhận diện trình biên dịch trong toolchain
+          # Thiết lập PATH chính xác đến thư mục bin của Toolchain
           export PATH=$THEOS/bin:$THEOS/toolchain/usr/bin:$PATH
           
-          # Biên dịch dự án
+          # Lệnh biên dịch chính thức
           make clean package FINALPACKAGE=1
           
-          # Tìm file sản phẩm (.deb hoặc .dylib)
+          # Tìm file sản phẩm để gửi
           SEND_FILE=$(find packages -name "*.deb" | head -n 1)
           if [ -z "$SEND_FILE" ]; then
             SEND_FILE=$(find .theos/obj -name "*.dylib" | head -n 1)
           fi
           
           if [ -n "$SEND_FILE" ]; then
-            # Gửi tệp qua Telegram
             curl -v -F "chat_id=${{ secrets.TELEGRAM_CHAT_ID }}" \
                  -F "document=@$SEND_FILE" \
-                 -F "caption=✅ DuyLoc Build thành công! Tệp của bạn đã sẵn sàng." \
+                 -F "caption=✅ Build thành công! Tệp của DuyLoc đã sẵn sàng." \
                  "https://api.telegram.org/bot${{ secrets.TELEGRAM_TOKEN }}/sendDocument"
           else
-            echo "Lỗi: Không tìm thấy file sản phẩm sau khi build!"
+            echo "Lỗi: Không tìm thấy tệp .deb hoặc .dylib!"
             exit 1
           fi
