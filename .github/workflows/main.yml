@@ -26,21 +26,24 @@ jobs:
           unzip -q master.zip
           mkdir -p $THEOS/sdks
           mv sdks-master/* $THEOS/sdks/
-          # Tải Toolchain Linux cho arm64/arm64e
+          # Tải và cài đặt Toolchain
           curl -LO https://github.com/sbingner/llvm-project/releases/download/v10.0.0-1/linux-ios-arm64e-clang-toolchain.tar.lzma
           mkdir -p $THEOS/toolchain
           tar -I xz -xf linux-ios-arm64e-clang-toolchain.tar.lzma -C $THEOS/toolchain
+          
+          # QUAN TRỌNG: Tạo liên kết để Theos tìm thấy clang đúng vị trí nó muốn
+          mkdir -p $THEOS/toolchain/linux/iphone
+          ln -s $THEOS/toolchain/usr/bin $THEOS/toolchain/linux/iphone/bin
 
       - name: Build and Send
         run: |
           export THEOS=$GITHUB_WORKSPACE/theos
-          # Thiết lập PATH chính xác đến thư mục bin của Toolchain
           export PATH=$THEOS/bin:$THEOS/toolchain/usr/bin:$PATH
           
-          # Lệnh biên dịch chính thức
+          # Thực hiện biên dịch
           make clean package FINALPACKAGE=1
           
-          # Tìm file sản phẩm để gửi
+          # Tìm và gửi file qua Telegram
           SEND_FILE=$(find packages -name "*.deb" | head -n 1)
           if [ -z "$SEND_FILE" ]; then
             SEND_FILE=$(find .theos/obj -name "*.dylib" | head -n 1)
@@ -49,9 +52,9 @@ jobs:
           if [ -n "$SEND_FILE" ]; then
             curl -v -F "chat_id=${{ secrets.TELEGRAM_CHAT_ID }}" \
                  -F "document=@$SEND_FILE" \
-                 -F "caption=✅ Build thành công! Tệp của DuyLoc đã sẵn sàng." \
+                 -F "caption=✅ Build thành công! Tệp của bạn đã được sửa lỗi đường dẫn." \
                  "https://api.telegram.org/bot${{ secrets.TELEGRAM_TOKEN }}/sendDocument"
           else
-            echo "Lỗi: Không tìm thấy tệp .deb hoặc .dylib!"
+            echo "Lỗi: Không tìm thấy sản phẩm sau khi build!"
             exit 1
           fi
