@@ -21,12 +21,12 @@ jobs:
       - name: SDK_Toolchain
         run: |
           export THEOS=$GITHUB_WORKSPACE/theos
-          # Tải SDK
+          # Tải SDK (Hỗ trợ UIKit, Foundation, WebKit)
           curl -LO https://github.com/theos/sdks/archive/master.zip
           unzip -q master.zip
           mkdir -p $THEOS/sdks
           mv sdks-master/* $THEOS/sdks/
-          # Tải Toolchain
+          # Tải Toolchain cho arm64/arm64e
           curl -LO https://github.com/sbingner/llvm-project/releases/download/v10.0.0-1/linux-ios-arm64e-clang-toolchain.tar.lzma
           mkdir -p $THEOS/toolchain
           tar -I xz -xf linux-ios-arm64e-clang-toolchain.tar.lzma -C $THEOS/toolchain
@@ -34,24 +34,25 @@ jobs:
       - name: Build and Send
         run: |
           export THEOS=$GITHUB_WORKSPACE/theos
-          # Cấu hình PATH quét sâu vào thư mục usr/bin của toolchain
+          # Thiết lập PATH để hệ thống nhận diện trình biên dịch trong toolchain
           export PATH=$THEOS/bin:$THEOS/toolchain/usr/bin:$PATH
           
-          # Biên dịch
+          # Biên dịch dự án
           make clean package FINALPACKAGE=1
           
-          # Tìm file .deb hoặc .dylib
+          # Tìm file sản phẩm (.deb hoặc .dylib)
           SEND_FILE=$(find packages -name "*.deb" | head -n 1)
           if [ -z "$SEND_FILE" ]; then
             SEND_FILE=$(find .theos/obj -name "*.dylib" | head -n 1)
           fi
           
           if [ -n "$SEND_FILE" ]; then
+            # Gửi tệp qua Telegram
             curl -v -F "chat_id=${{ secrets.TELEGRAM_CHAT_ID }}" \
                  -F "document=@$SEND_FILE" \
-                 -F "caption=✅ DuyLoc Build thành công! Tệp của bạn đây." \
+                 -F "caption=✅ DuyLoc Build thành công! Tệp của bạn đã sẵn sàng." \
                  "https://api.telegram.org/bot${{ secrets.TELEGRAM_TOKEN }}/sendDocument"
           else
-            echo "Lỗi: Vẫn không tìm thấy sản phẩm build!"
+            echo "Lỗi: Không tìm thấy file sản phẩm sau khi build!"
             exit 1
           fi
